@@ -1,0 +1,19 @@
+{
+  "name": "api-rest-vanilla-js-movie-db",
+  "version": "1.0.0",
+  "description": "consume of API REST the movide DB with javascript vanilla, this is a project of the practical course consume of REST API for platzi",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacmsa/api-rest-vanilla-js-movie-db.git"
+  },
+  "author": "Isaac Mendoza",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/isaacmsa/api-rest-vanilla-js-movie-db/issues"
+  },
+  "homepage": "https://github.com/isaacmsa/api-rest-vanilla-js-movie-db#readme"
+}

@@ -8,25 +8,22 @@ const api = axios.create({
   },
 })
 
-async function getTrendingMoviesPreview() {
-  /* Obtener peliculas en tendencia */
-  const { data } = await api.get('/trending/movie/day')
-
-  /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
-  const movies = data.results
+// Helpers (utils)
+function createMovies(movies, container) {
+  container.innerHTML = ''
 
   /* Se intera el array de las peliculas para ir creando una por una */
   movies.forEach((movie) => {
-    /* Llamar al article de la pelicula */
-    const trendingPreviewMoviesContainer = document.querySelector(
-      '#trendingPreview .trendingPreview-movieList'
-    )
-
     /* Se crea un nodo div para el wrapper de la pelicula */
     const movieContainer = document.createElement('div')
 
     /* Se le añade la clase al wrapper */
     movieContainer.classList.add('movie-container') // metodo add para añadir una nueva clase a un nodo
+
+    /* Se le añade un boton a la pelicula para ir a los detalles de la misma */
+    movieContainer.addEventListener('click', () => {
+      location.hash = '#movie=' + movie.id
+    })
 
     /* Se crea un nodo imagen */
     const movieImg = document.createElement('img')
@@ -45,24 +42,15 @@ async function getTrendingMoviesPreview() {
     movieContainer.appendChild(movieImg)
 
     /* Se le añade el wrapper al article que es el padre */
-    trendingPreviewMoviesContainer.appendChild(movieContainer)
+    container.appendChild(movieContainer)
   })
 }
 
-async function getCategoriesMoviesPreview() {
-  /* Obtener categorias de peliculas */
-  const { data } = await api.get('/genre/movie/list')
-
-  /* Se obtienen data y se accede a genres que es donde esta el array de categorias */
-  const catagories = data.genres
+function createCategories(categories, container) {
+  container.innerHTML = ''
 
   /* Se intera el array de las categorias para ir creando una por una */
-  catagories.forEach((category) => {
-    /* Llamar al article de la categoria */
-    const previewCategoriesContainer = document.querySelector(
-      '#categoriesPreview .categoriesPreview-list'
-    )
-
+  categories.forEach((category) => {
     /* Se crea un nodo div para el wrapper de la categoria */
     const categoryContainer = document.createElement('div')
 
@@ -78,6 +66,10 @@ async function getCategoriesMoviesPreview() {
     /* Se le añade el atributo id */
     categoryTitle.setAttribute('id', 'id' + category.id)
 
+    categoryTitle.addEventListener('click', () => {
+      location.hash = `#category=${category.id}-${category.name}`
+    })
+
     /* Se crea un nodo de tipo texto para el nombre de la categoria */
     const categoryTitleText = document.createTextNode(category.name)
 
@@ -88,9 +80,95 @@ async function getCategoriesMoviesPreview() {
     categoryContainer.appendChild(categoryTitle)
 
     /* Se le añade el wrapper al article que es el padre */
-    previewCategoriesContainer.appendChild(categoryContainer)
+    container.appendChild(categoryContainer)
   })
 }
 
-getTrendingMoviesPreview()
-getCategoriesMoviesPreview()
+// Llamados a la API
+async function getTrendingMoviesPreview() {
+  /* Obtener peliculas en tendencia */
+  const { data } = await api.get('/trending/movie/day')
+
+  /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
+  const movies = data.results
+
+  createMovies(movies, trendingMoviesPreviewList)
+}
+
+async function getCategoriesMoviesPreview() {
+  /* Obtener categorias de peliculas */
+  const { data } = await api.get('/genre/movie/list')
+
+  /* Se obtienen data y se accede a genres que es donde esta el array de categorias */
+  const catagories = data.genres
+
+  createCategories(catagories, categoriesPreviewList)
+}
+
+async function getMoviesByCategory(id) {
+  /* Obtener peliculas por categoria */
+  const { data } = await api.get('/discover/movie', {
+    params: {
+      with_genres: id,
+    },
+  })
+
+  /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
+  const movies = data.results
+
+  createMovies(movies, genericSection)
+}
+
+async function getMoviesBySearch(query) {
+  /* Obtener peliculas buscadas en el buscador */
+  const { data } = await api.get('/search/movie', {
+    params: {
+      query,
+    },
+  })
+
+  /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
+  const movies = data.results
+
+  createMovies(movies, genericSection)
+}
+
+async function getTrendingMovies() {
+  /* Obtener peliculas en tendencia */
+  const { data } = await api.get('/trending/movie/day')
+
+  /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
+  const movies = data.results
+
+  createMovies(movies, genericSection)
+}
+
+async function getMovieById(id) {
+  /* Obtener pelicula por id */
+  const { data: movie } = await api.get(`/movie/${id}`)
+
+  const movieImgUrl = 'https://image.tmdb.org/t/p/w500' + movie.poster_path
+  headerSection.style.background = `
+  linear-gradient(
+    180deg, 
+    rgba(0, 0, 0, 0.35) 19.27%, 
+    rgba(0, 0, 0, 0) 29.17%),
+    url(${movieImgUrl})
+  `
+
+  movieDetailTitle.textContent = movie.title
+  movieDetailDescription.textContent = movie.overview
+  movieDetailScore.textContent = movie.vote_average
+
+  createCategories(movie.genres, movieDetailCategoriesList)
+  getRelatedMoviesId(id)
+}
+
+async function getRelatedMoviesId(id) {
+  const { data } = await api.get(`/movie/${id}/recommendations`)
+  const relatedMovies = data.results
+
+  createMovies(relatedMovies, relatedMoviesContainer)
+  relatedMoviesContainer.scrollTo(0, 0)
+}
+

@@ -103,6 +103,6 @@ dist
 # TernJS port file
 .tern-port
 
-# env.js (API KEY)
-src/env.js
+# # env.js (API KEY)
+# src/env.js
 

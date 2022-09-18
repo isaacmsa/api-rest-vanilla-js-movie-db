@@ -1,3 +1,4 @@
+// Data
 const api = axios.create({
   baseURL: 'https://api.themoviedb.org/3',
   headers: {
@@ -8,9 +9,59 @@ const api = axios.create({
   },
 })
 
+function likedMoviesList() {
+  const item = JSON.parse(localStorage.getItem('liked_movies'))
+  let movies
+
+  if (item) {
+    movies = item
+  } else {
+    movies = {}
+  }
+
+  return movies
+}
+
+function likeMovie(movie) {
+  const likedMovies = likedMoviesList()
+
+  if (likedMovies[movie.id]) {
+    likedMovies[movie.id] = undefined
+  } else {
+    likedMovies[movie.id] = movie
+  }
+
+  localStorage.setItem('liked_movies', JSON.stringify(likedMovies))
+
+  getTrendingMoviesPreview()
+  getLikedMovies()
+}
+
 // Helpers (utils)
-function createMovies(movies, container) {
-  container.innerHTML = ''
+
+// Lazy loading
+const lazyLoader = new IntersectionObserver((entries) => { // se le envia solo una funcion ya que se va a observar todo el HTML
+  // las entries son todos los elementos que se van a observar
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      const url = entry.target.getAttribute('data-img')
+      entry.target.setAttribute('src', url)
+    }
+  })
+
+})
+
+function createMovies(
+  movies,
+  container,
+  {
+    isLazy = false,
+    clean = false
+  } = {}
+) {
+  if (clean) {
+    container.innerHTML = ''
+  }
 
   /* Se intera el array de las peliculas para ir creando una por una */
   movies.forEach((movie) => {
@@ -19,11 +70,6 @@ function createMovies(movies, container) {
 
     /* Se le añade la clase al wrapper */
     movieContainer.classList.add('movie-container') // metodo add para añadir una nueva clase a un nodo
-
-    /* Se le añade un boton a la pelicula para ir a los detalles de la misma */
-    movieContainer.addEventListener('click', () => {
-      location.hash = '#movie=' + movie.id
-    })
 
     /* Se crea un nodo imagen */
     const movieImg = document.createElement('img')
@@ -34,12 +80,42 @@ function createMovies(movies, container) {
     /* Se le añaden los atributos */
     movieImg.setAttribute('alt', movie.title) // metodo setAttribute para añadir un nuevo atributo a un nodo, recibe el nombre del atributo y su valor
     movieImg.setAttribute(
-      'src',
+      isLazy ? 'data-img' : 'src',
       'https://image.tmdb.org/t/p/w300' + movie.poster_path
     )
 
+    /* Se le añade un boton a la pelicula para ir a los detalles de la misma */
+    movieImg.addEventListener('click', () => {
+      location.hash = '#movie=' + movie.id
+    })
+
+    movieImg.addEventListener('error', () => {
+      movieImg.setAttribute(
+        'src',
+        'https://static.platzi.com/static/images/error/img404.png'
+      )
+    })
+
+    const movieBtn = document.createElement('button')
+    movieBtn.classList.add('movie-btn')
+
+    likedMoviesList()[movie.id] && movieBtn.classList.add('movie-btn--liked')
+
+    movieBtn.addEventListener('click', () => {
+      movieBtn.classList.toggle('movie-btn--liked') // metodo toggle para agregar una clase cuando se le de click
+
+      /* Agregar la pelicula a localStorage */
+      likeMovie(movie)
+    })
+
+    if (isLazy) {
+      lazyLoader.observe(movieImg)
+    }
+
+
     /* Se le agrega la imagen al wrapper */
     movieContainer.appendChild(movieImg)
+    movieContainer.appendChild(movieBtn)
 
     /* Se le añade el wrapper al article que es el padre */
     container.appendChild(movieContainer)
@@ -92,7 +168,7 @@ async function getTrendingMoviesPreview() {
   /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
   const movies = data.results
 
-  createMovies(movies, trendingMoviesPreviewList)
+  createMovies(movies, trendingMoviesPreviewList, { isLazy: true, clean: true })
 }
 
 async function getCategoriesMoviesPreview() {
@@ -115,8 +191,35 @@ async function getMoviesByCategory(id) {
 
   /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
   const movies = data.results
+  maxPage = data.total_pages
 
-  createMovies(movies, genericSection)
+  createMovies(movies, genericSection, { isLazy: true, clean: true })
+}
+
+function getPaginatedMoviesByCategory(id) {
+  return async function () {
+    const { scrollTop, clientHeight, scrollHeight } = document.documentElement
+
+    const scrollIsBottom = (scrollTop + clientHeight) >= (scrollHeight - 15)
+    const pageIsNotMax = page < maxPage
+
+    if (scrollIsBottom && pageIsNotMax) {
+      page++
+
+      /* Obtener peliculas por categoria */
+      const { data } = await api.get('/discover/movie', {
+        params: {
+          with_genres: id,
+          page
+        },
+      })
+
+      /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
+      const movies = data.results
+
+      createMovies(movies, genericSection, { isLazy: true, clean: false })
+    }
+  }
 }
 
 async function getMoviesBySearch(query) {
@@ -129,8 +232,34 @@ async function getMoviesBySearch(query) {
 
   /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
   const movies = data.results
+  maxPage = data.total_pages
 
-  createMovies(movies, genericSection)
+  createMovies(movies, genericSection, { isLazy: true, clean: true })
+}
+
+function getPaginatedMoviesBySearch(query) {
+  return async function () {
+    const { scrollTop, clientHeight, scrollHeight } = document.documentElement
+
+    const scrollIsBottom = (scrollTop + clientHeight) >= (scrollHeight - 15)
+    const pageIsNotMax = page < maxPage
+
+    if (scrollIsBottom && pageIsNotMax) {
+      page++
+      /* Obtener peliculas buscadas en el buscador */
+      const { data } = await api.get('/search/movie', {
+        params: {
+          query,
+          page
+        },
+      })
+
+      /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
+      const movies = data.results
+
+      createMovies(movies, genericSection, { isLazy: true, clean: false })
+    }
+  }
 }
 
 async function getTrendingMovies() {
@@ -140,7 +269,35 @@ async function getTrendingMovies() {
   /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
   const movies = data.results
 
-  createMovies(movies, genericSection)
+  maxPage = data.total_pages
+
+  createMovies(movies, genericSection, { isLazy: true, clean: true })
+}
+
+async function getPaginatedTrendingMovies() {
+  // document.documentElement = elemento principal html
+  // document.documentElement.scrollTop = el scroll vertical que se ha hecho (el inicio es 0)
+  // document.documentElement.clientHeight = la altura maxima del dispositivo en el que se esta viendo la pagina actualmente
+  // document.documentElement.scrollHeight = el scroll maximo que se puede hacer en esa pantalla
+  const { scrollTop, clientHeight, scrollHeight } = document.documentElement
+
+  const scrollIsBottom = (scrollTop + clientHeight) >= (scrollHeight - 15)
+  const pageIsNotMax = page < maxPage
+
+  if (scrollIsBottom && pageIsNotMax) {
+    page++
+    /* Obtener peliculas en tendencia */
+    const { data } = await api.get('/trending/movie/day', {
+      params: {
+        page
+      }
+    })
+
+    /* Se obtienen data y se accede a results que es donde esta el array de peliculas */
+    const movies = data.results
+
+    createMovies(movies, genericSection, { isLazy: true, clean: false })
+  }
 }
 
 async function getMovieById(id) {
@@ -168,7 +325,14 @@ async function getRelatedMoviesId(id) {
   const { data } = await api.get(`/movie/${id}/recommendations`)
   const relatedMovies = data.results
 
-  createMovies(relatedMovies, relatedMoviesContainer)
+  createMovies(relatedMovies, relatedMoviesContainer, { isLazy: true, clean: true })
   relatedMoviesContainer.scrollTo(0, 0)
+}
+
+function getLikedMovies() {
+  const likedMovies = likedMoviesList()
+  const moviesArray = Object.values(likedMovies)
+
+  createMovies(moviesArray, likedMoviesListNodes, { isLazy: true, clean: true })
 }
 

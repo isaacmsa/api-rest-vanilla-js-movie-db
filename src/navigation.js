@@ -1,3 +1,7 @@
+let maxPage
+let page = 1
+let infiniteScroll
+
 /* Agregar eventos a los botones busqueda, vr mas y retroceso */
 searchFormBtn.addEventListener('click', () => {
   location.hash = '#search=' + searchFormInput.value
@@ -19,10 +23,16 @@ window.addEventListener('hashchange', navigator, false) // evento hashchange par
 // nota: El tercer parametro se utiliza para determinar si se va a manejar con bubbling (propagacion de enventos) cuando es false o capturing cuando es true
 // Location Propiedad del navegador de JS que permite leer la URL en la que nos encontramos actualmente, entre sus propiedades está el hash, puerto, ruta, etc
 // onhaschange: Permite que ejecutemos cierto código cada vez que cambie nuestro hash
+window.addEventListener('scroll', infiniteScroll, false)
 
 /* funcion para redirigir */
 function navigator() {
   console.log(location)
+
+  if (infiniteScroll) {
+    window.removeEventListener('scroll', infiniteScroll, { passive: false })
+    infiniteScroll = undefined
+  }
 
   // metodo de los strings startsWith() para saber si el string empieza con esa palabra, este metodo recibe el striing a buscar
   if (location.hash.startsWith('#trends')) {
@@ -41,6 +51,10 @@ function navigator() {
   // document.body.scrollTop = 0
   // para navegadores como safari o brave
   document.documentElement.scrollTop = 0
+
+  if (infiniteScroll) {
+    window.addEventListener('scroll', infiniteScroll, { passive: false })
+  }
 }
 
 /* validar clases que tendra cada vista segun su hash # */
@@ -57,11 +71,13 @@ function homePage() {
 
   trendingPreviewSection.classList.remove('inactive')
   categoriesPreviewSection.classList.remove('inactive')
+  likedMoviesSection.classList.remove('inactive')
   genericSection.classList.add('inactive')
   movieDetailSection.classList.add('inactive')
 
   getTrendingMoviesPreview()
   getCategoriesMoviesPreview()
+  getLikedMovies()
 }
 
 function categoriesPage() {
@@ -77,6 +93,7 @@ function categoriesPage() {
 
   trendingPreviewSection.classList.add('inactive')
   categoriesPreviewSection.classList.add('inactive')
+  likedMoviesSection.classList.add('inactive')
   genericSection.classList.remove('inactive')
   movieDetailSection.classList.add('inactive')
 
@@ -86,6 +103,8 @@ function categoriesPage() {
   headerCategoryTitle.innerHTML = decodeURIComponent(categoryName) // funcion para eliminar decodificar URI
 
   getMoviesByCategory(categoryId)
+
+  infiniteScroll = getPaginatedMoviesByCategory(categoryId)
 }
 
 function movieDetailsPage() {
@@ -101,6 +120,7 @@ function movieDetailsPage() {
 
   trendingPreviewSection.classList.add('inactive')
   categoriesPreviewSection.classList.add('inactive')
+  likedMoviesSection.classList.add('inactive')
   genericSection.classList.add('inactive')
   movieDetailSection.classList.remove('inactive')
 
@@ -121,11 +141,14 @@ function searchPage() {
 
   trendingPreviewSection.classList.add('inactive')
   categoriesPreviewSection.classList.add('inactive')
+  likedMoviesSection.classList.add('inactive')
   genericSection.classList.remove('inactive')
   movieDetailSection.classList.add('inactive')
 
   const [url, query] = location.hash.split('=') // [#search, 'buscador]
   getMoviesBySearch(query)
+
+  infiniteScroll = getPaginatedMoviesBySearch(query)
 }
 function trendsPage() {
   console.log('Trends')
@@ -140,10 +163,13 @@ function trendsPage() {
 
   trendingPreviewSection.classList.add('inactive')
   categoriesPreviewSection.classList.add('inactive')
+  likedMoviesSection.classList.add('inactive')
   genericSection.classList.remove('inactive')
   movieDetailSection.classList.add('inactive')
 
   headerCategoryTitle.innerHTML = 'Tendencias'
 
   getTrendingMovies()
+
+  infiniteScroll = getPaginatedTrendingMovies
 }
